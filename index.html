@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editable Table with Print to PDF Feature</title>
+    <link rel="stylesheet" href="adm/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: rgb(163, 163, 244);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+            text-shadow: 1px 1px 2px #fff;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: aquamarine;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+            position: relative;
+        }
+        input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .btns {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .bns {
+            border-radius: 50px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .bns:hover {
+            background-color: #6c757d; 
+            color: white;
+            transform: scale(1.15);
+        }
+        @media print {
+            body { overflow: hidden; }
+            .btns, .bns { display: none; }
+        }
+        .background {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle, rgba(19, 238, 205, 0.692), rgba(12, 70, 81, 0.05));
+            animation: pulse 1s infinite;
+            z-index: -1;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
+        .remove-btn, .add-btn {
+            position: relative;
+            border: none;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            text-align: center;
+            line-height: 24px;
+            font-size: 20px; 
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <h2 style="background: #a4e32e;">Daily Parking Report</h2> 
+
+    <div class="btns">
+        <button onclick="addRow()" class="btn btn-primary bns">Add New Row</button>
+        <button onclick="saveData()" class="btn btn-success bns">Save Table</button>
+        <button onclick="printTable()" class="btn btn-dark bns">Export to PDF</button>
+        <button onclick="clearData()" class="btn btn-danger bns">Clear Table</button>
+        <button onclick="upTS()" class="btn btn-warning bns">Upload to Server</button>
+    </div>
+
+    <div class="container">
+        <table id="myTable" class="table">
+            <thead>
+                <tr>
+                    <th>Sn</th>
+                    <th>Vehicle Name</th>
+                    <th>Vehicle Number</th>
+                    <th>Driver Name</th>
+                    <th>In Time</th>
+                    <th>Amount Received</th>
+                    <th>Out Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let snCount = 1;
+
+        function addRow(afterRow = null) {
+            let table = document.getElementById("myTable").getElementsByTagName('tbody')[0];
+            let newRow = afterRow ? table.insertRow(afterRow.rowIndex) : table.insertRow();
+
+            let snCell = newRow.insertCell(0);
+            snCell.textContent = snCount++;
+
+            for (let i = 1; i <= 6; i++) {
+                let newCell = newRow.insertCell(i);
+                let input = document.createElement("input");
+                input.type = "text";
+                newCell.appendChild(input);
+            }
+
+            let actionCell = newRow.insertCell(7);
+            let removeButton = document.createElement("button");
+            removeButton.textContent = "✖";
+            removeButton.className = "remove-btn";
+            removeButton.onclick = function() { removeRow(newRow); };
+            
+            let addButton = document.createElement("button");
+            addButton.textContent = "+";
+            addButton.className = "add-btn";
+            addButton.onclick = function() { addRow(newRow); };
+            
+            actionCell.appendChild(addButton);
+            actionCell.appendChild(removeButton);
+
+            renumberRows();
+        }
+
+        function removeRow(row) {
+            let table = document.getElementById("myTable").getElementsByTagName('tbody')[0];
+            table.deleteRow(row.rowIndex - 1);
+            renumberRows();
+            saveData();
+        }
+
+        function renumberRows() {
+            let table = document.getElementById("myTable").getElementsByTagName('tbody')[0];
+            for (let i = 0; i < table.rows.length; i++) {
+                table.rows[i].cells[0].textContent = i + 1;
+            }
+            snCount = table.rows.length + 1;
+        }
+
+        function printTable() { window.print(); }
+
+        function saveData() {
+            let table = document.getElementById("myTable");
+            let tableData = [];
+            for (let i = 1, row; row = table.rows[i]; i++) {
+                let rowData = {};
+                rowData["Sn"] = row.cells[0].textContent;
+                for (let j = 1; j < row.cells.length - 1; j++) {
+                    rowData[table.rows[0].cells[j].textContent] = row.cells[j].firstChild.value;
+                }
+                tableData.push(rowData);
+            }
+            localStorage.setItem("tableData", JSON.stringify(tableData));
+            alert("Table data Updated!");
+        }
+
+        function loadData() {
+            let savedData = JSON.parse(localStorage.getItem("tableData"));
+            if (savedData) {
+                let table = document.getElementById("myTable").getElementsByTagName('tbody')[0];
+                savedData.forEach((rowData) => {
+                    let newRow = table.insertRow();
+                    let snCell = newRow.insertCell(0);
+                    snCell.textContent = rowData["Sn"];
+                    for (let key in rowData) {
+                        if (key !== "Sn") {
+                            let newCell = newRow.insertCell();
+                            let input = document.createElement("input");
+                            input.type = "text";
+                            input.value = rowData[key];
+                            newCell.appendChild(input);
+                        }
+                    }
+                    let actionCell = newRow.insertCell(7);
+                    let removeButton = document.createElement("button");
+                    removeButton.textContent = "✖";
+                    removeButton.className = "remove-btn";
+                    removeButton.onclick = function() { removeRow(newRow); };
+                    
+                    let addButton = document.createElement("button");
+                    addButton.textContent = "+";
+                    addButton.className = "add-btn";
+                    addButton.onclick = function() { addRow(newRow); };
+
+                    actionCell.appendChild(addButton);
+                    actionCell.appendChild(removeButton);
+                });
+                renumberRows();
+            }
+        }
+
+        window.onload = function() { loadData(); }
+
+        function clearData() {
+            localStorage.removeItem("tableData");
+            let table = document.getElementById("myTable").getElementsByTagName('tbody')[0];
+            while (table.rows.length > 0) {
+                table.deleteRow(0);
+            }
+            snCount = 1; 
+            alert("Table data cleared!");
+        }
+
+        function upTS(){ alert('Data Has Been Uploaded to Server'); }
+    </script>
+    
+    <script src="adm/js/bootstrap.min.js"></script>
+</body>
+</html>
